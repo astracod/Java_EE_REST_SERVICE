@@ -1,5 +1,7 @@
 package ru.avrsoft.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ru.avrsoft.dto.FileResponse;
 import ru.avrsoft.dto.SaveFile;
 import ru.avrsoft.dto.StatusCheck;
@@ -19,6 +21,7 @@ import java.util.stream.Stream;
 @Stateless
 public class FileService {
 
+
     @EJB
     private FileResourceSQLQuery fileResourceSQLQuery;
 
@@ -26,6 +29,7 @@ public class FileService {
         return "Hello";
     }
 
+    public static final Logger LOGGER = LoggerFactory.getLogger(FileService.class);
 
     /**
      * API методы
@@ -107,10 +111,10 @@ public class FileService {
         return Response.status(406).build();
     }
 
+    /**
+     * 5. POST Сохранение файла, то есть это Получение файла метод upload, которая на вход получает InputStream и также task_id, report_id
+     */
     public Response saveFileByID(Integer taskId, Integer reportId, InputStream dataStream) {
-        Date date = new Date();
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-        String dateCreation = formatter.format(date);
 
         SaveFile saveFile = fileResourceSQLQuery.saveFileById(dataStream, taskId, reportId);
 
@@ -118,6 +122,30 @@ public class FileService {
                 .status(Response.Status.OK)
                 .entity(saveFile.getAnswerBase())
                 .build();
+
+    }
+
+    /**
+     *  запись в файл
+     *  как дописывать данные в создаваемый файл
+     * @param dataStream
+     */
+    private void writeTiFile(String dataStream) {
+
+        Date date = new Date();
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        String dateCreation = formatter.format(date);
+
+        try (FileWriter writer = new FileWriter(dataStream, false)) {
+
+            String text = "Запись произведена : " + dateCreation;
+            writer.write(text);
+            writer.flush();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     public Response removeFileByIdAndFileName(Integer id, String fileName) {

@@ -15,8 +15,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 
 @Stateless
@@ -45,6 +47,7 @@ public class FileResourceSQLQuery {
     public static final String FILE_NAME_SEARCH = "select * from \"public\".files where files.file_name = ?";
 
     public static final String TRAINING_PHYSICAL_FILES_STORAGE = "C:\\Users\\Admin\\Desktop\\";
+
 
     private static DataSource dataSource = ConnectionDB.INSTANCE.getDataSource();
 
@@ -103,14 +106,15 @@ public class FileResourceSQLQuery {
      * 5. POST Сохранение файла, то есть это Получение файла метод upload, которая на вход получает InputStream и также task_id, report_id
      */
     public SaveFile saveFileById(InputStream dataFile, Integer taskId, Integer reportId) {
+
         SaveFile saveFile = new SaveFile();
 
-
         String fullFilePath = "C:\\Users\\Admin\\Desktop\\savePlace.txt"; // указываю место куда сохраняю
-        String[] address = fullFilePath.split("\\\\"); // надо заменить на используемый путь
+        String[] address = fullFilePath.split("\\\\");
         String filePath = address[4].substring(0, address[4].indexOf(".")); // формирование названия файла
 
         boolean fileNameComparisonResult = getFileByFileName(filePath);
+
 
         byte[] buffer;
         OutputStream ous = null; // стрим в который будет сохранятся фаил , пришедший из инпут срима
@@ -122,12 +126,14 @@ public class FileResourceSQLQuery {
 
         try {
             buffer = new byte[4096];
+
             int read = 0;
             while ((read = dataFile.read(buffer)) != -1) {
                 ous.write(buffer, 0, read);
             }
             ous.flush();
             ous.close();
+
             if (!fileNameComparisonResult) {
                 StatusCheck statusCheck = putFileInDataBase(filePath, fullFilePath, taskId, reportId);
 
@@ -150,6 +156,7 @@ public class FileResourceSQLQuery {
         }
         return saveFile;
     }
+
 
 
     /**
@@ -198,7 +205,7 @@ public class FileResourceSQLQuery {
         return statusCheck;
     }
 
-    private static boolean getFileByFileName(String fileName) {
+    public   boolean getFileByFileName(String fileName) {
         String name = "";
         try (Connection connection = dataSource.getConnection()) {
             PreparedStatement statement = connection.prepareStatement(FILE_NAME_SEARCH);
@@ -235,7 +242,7 @@ public class FileResourceSQLQuery {
     }
 
 
-    private static StatusCheck putFileInDataBase(String fileName, String fullFilePath, Integer taskId, Integer reportId) {
+    public   StatusCheck putFileInDataBase(String fileName, String fullFilePath, Integer taskId, Integer reportId) {
         StatusCheck statusCheck = new StatusCheck();
 
         String hash = Integer.toHexString(fileName.hashCode());
