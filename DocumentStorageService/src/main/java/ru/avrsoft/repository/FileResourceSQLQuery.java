@@ -78,7 +78,7 @@ public class FileResourceSQLQuery {
      *
      * @param
      */
-    public static FileResponse getFileByNameOrHash(String dataFile) {
+    public FileResponse getFileByNameOrHash(String dataFile) {
 
         FileResponse fileResponse = new FileResponse();
 
@@ -102,7 +102,7 @@ public class FileResourceSQLQuery {
     /**
      * 5. POST Сохранение файла, то есть это Получение файла метод upload, которая на вход получает InputStream и также task_id, report_id
      */
-    public static SaveFile saveFileById(InputStream dataFile, Integer taskId, Integer reportId) {
+    public SaveFile saveFileById(InputStream dataFile, Integer taskId, Integer reportId) {
         SaveFile saveFile = new SaveFile();
 
 
@@ -155,7 +155,7 @@ public class FileResourceSQLQuery {
     /**
      * 6. @DELETE удаление  записи о файле из бд по имени файла и id User
      */
-    public static StatusCheck removeFileByIdAndFileName(Integer id, String fileName) {
+    public StatusCheck removeFileByIdAndFileName(Integer id, String fileName) {
 
         boolean statusStorage = false;
         Integer workerId = 0;

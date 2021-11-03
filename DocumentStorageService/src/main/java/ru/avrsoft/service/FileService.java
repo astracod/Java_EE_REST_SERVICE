@@ -83,7 +83,7 @@ public class FileService {
         File f = null;
 
         try {
-            String filePath = FileResourceSQLQuery.getFileByNameOrHash(fileName).getFilePath();
+            String filePath = fileResourceSQLQuery.getFileByNameOrHash(fileName).getFilePath();
 
             if (filePath != null) {
                 f = new File(filePath);
@@ -112,7 +112,7 @@ public class FileService {
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
         String dateCreation = formatter.format(date);
 
-        SaveFile saveFile = FileResourceSQLQuery.saveFileById(dataStream, taskId, reportId);
+        SaveFile saveFile = fileResourceSQLQuery.saveFileById(dataStream, taskId, reportId);
 
         return Response
                 .status(Response.Status.OK)
@@ -122,7 +122,7 @@ public class FileService {
 
     public Response removeFileByIdAndFileName(Integer id, String fileName) {
 
-        StatusCheck statusCheck = FileResourceSQLQuery.removeFileByIdAndFileName(id, fileName);
+        StatusCheck statusCheck = fileResourceSQLQuery.removeFileByIdAndFileName(id, fileName);
 
         if (statusCheck.getResultQuery() == null) {
             return Response
