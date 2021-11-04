@@ -7,13 +7,12 @@ import ru.avrsoft.dto.SaveFile;
 import ru.avrsoft.dto.StatusCheck;
 import ru.avrsoft.exception.RequestProcessingException;
 import ru.avrsoft.repository.FileResourceSQLQuery;
+import ru.avrsoft.repository.FileSharing;
 
 import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.ws.rs.core.Response;
-import java.io.*;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.io.InputStream;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -24,6 +23,9 @@ public class FileService {
 
     @EJB
     private FileResourceSQLQuery fileResourceSQLQuery;
+
+    @EJB
+    private FileSharing fileSharing;
 
     public String test() {
         return "Hello";
@@ -80,35 +82,16 @@ public class FileService {
         return fileResourceSQLQuery.getListFilesByTaskId(taskId, 0);
     }
 
+    /**
+     * 4. GET Отдача файлового контента то есть потока InputStream по file_name или по sha5
+     *
+     * @param
+     */
     public Response getInputStream(String fileName) {
 
-        ByteArrayOutputStream ous = new ByteArrayOutputStream();
-        String fileName1 = null;
-        File f = null;
+        String filePath = fileResourceSQLQuery.getFileByNameOrHash(fileName).getFilePath();
 
-        try {
-            String filePath = fileResourceSQLQuery.getFileByNameOrHash(fileName).getFilePath();
-
-            if (filePath != null) {
-                f = new File(filePath);
-            }
-            InputStream ios = null;
-            byte[] buffer = new byte[4096];
-            ios = new FileInputStream(f);
-            int read = 0;
-            while ((read = ios.read(buffer)) != -1) {
-                ous.write(buffer, 0, read);
-            }
-            return Response.ok(
-                    (InputStream) (new ByteArrayInputStream(ous.toByteArray())))
-                    .header("fileName", fileName1)
-                    .build();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-        return Response.status(406).build();
+        return fileSharing.servingFileContentToInputStream(filePath);
     }
 
     /**
@@ -116,38 +99,26 @@ public class FileService {
      */
     public Response saveFileByID(Integer taskId, Integer reportId, InputStream dataStream) {
 
-        SaveFile saveFile = fileResourceSQLQuery.saveFileById(dataStream, taskId, reportId);
+        if (fileSharing.retrievingAndWritingAFileToStorage(dataStream)) {
 
-        return Response
-                .status(Response.Status.OK)
-                .entity(saveFile.getAnswerBase())
-                .build();
+            SaveFile saveFile = fileResourceSQLQuery.saveFileById(taskId, reportId);
 
-    }
-
-    /**
-     *  запись в файл
-     *  как дописывать данные в создаваемый файл
-     * @param dataStream
-     */
-    private void writeTiFile(String dataStream) {
-
-        Date date = new Date();
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        String dateCreation = formatter.format(date);
-
-        try (FileWriter writer = new FileWriter(dataStream, false)) {
-
-            String text = "Запись произведена : " + dateCreation;
-            writer.write(text);
-            writer.flush();
-
-        } catch (IOException e) {
-            e.printStackTrace();
+            return Response
+                    .status(Response.Status.OK)
+                    .entity(saveFile.getAnswerBase())
+                    .build();
+        } else {
+            return Response
+                    .status(Response.Status.BAD_REQUEST)
+                    .entity("File not written")
+                    .build();
         }
 
     }
 
+    /**
+     * 6. @DELETE удаление  записи о файле из бд по имени файла и id User
+     */
     public Response removeFileByIdAndFileName(Integer id, String fileName) {
 
         StatusCheck statusCheck = fileResourceSQLQuery.removeFileByIdAndFileName(id, fileName);

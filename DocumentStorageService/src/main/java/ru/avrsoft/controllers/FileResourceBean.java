@@ -109,6 +109,7 @@ public class FileResourceBean {
 
     /**
      * 5. POST Сохранение файла, то есть это Получение файла метод upload, которая на вход получает InputStream и также task_id, report_id
+     * InputStream
      */
     @POST
     @Path("myload")

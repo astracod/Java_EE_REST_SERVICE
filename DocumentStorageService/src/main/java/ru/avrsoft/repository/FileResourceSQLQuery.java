@@ -10,15 +10,12 @@ import ru.avrsoft.exception.RequestProcessingException;
 
 import javax.ejb.Stateless;
 import javax.sql.DataSource;
-import java.io.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 
 @Stateless
@@ -52,6 +49,53 @@ public class FileResourceSQLQuery {
     private static DataSource dataSource = ConnectionDB.INSTANCE.getDataSource();
 
     public static final Logger LOGGER = LoggerFactory.getLogger(FileResourceSQLQuery.class);
+
+
+    /**
+     * API методы
+     * 1. GET Получение списка файлов для пользователя
+     * метод вернет данные:
+     * file_name
+     * file_path
+     * sha5     *
+     *
+     * @param workerId
+     * @return
+     */
+    public List<Integer> getTaskIdAndReportIdByWorkerId(Integer workerId) {
+        List<Integer> listId = Collections.synchronizedList(new ArrayList<>());
+        try (Connection connection = dataSource.getConnection()) {
+            PreparedStatement statement = connection.prepareStatement(GET_TASKID_AND_REPORTID_BY_WORKERID,
+                    ResultSet.TYPE_SCROLL_SENSITIVE,
+                    ResultSet.CONCUR_UPDATABLE);
+            statement.setInt(1, workerId);
+            ResultSet resultSet = statement.executeQuery();
+
+
+            int numberOfRows = 0;
+            resultSet.last();
+            numberOfRows = resultSet.getRow();
+
+            if (numberOfRows == 0) {
+                listId.add(-1);
+            }
+
+            if (numberOfRows > 0) {
+                resultSet.beforeFirst();
+            }
+
+            if (numberOfRows > 0) {
+                while (resultSet.next()) {
+                    listId.add(resultSet.getInt("id"));
+                    listId.add(resultSet.getInt("report_id"));
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return listId;
+    }
 
 
     /**
@@ -104,8 +148,9 @@ public class FileResourceSQLQuery {
 
     /**
      * 5. POST Сохранение файла, то есть это Получение файла метод upload, которая на вход получает InputStream и также task_id, report_id
+     * InputStream dataFile
      */
-    public SaveFile saveFileById(InputStream dataFile, Integer taskId, Integer reportId) {
+    public SaveFile saveFileById(Integer taskId, Integer reportId) {
 
         SaveFile saveFile = new SaveFile();
 
@@ -116,47 +161,25 @@ public class FileResourceSQLQuery {
         boolean fileNameComparisonResult = getFileByFileName(filePath);
 
 
-        byte[] buffer;
-        OutputStream ous = null; // стрим в который будет сохранятся фаил , пришедший из инпут срима
-        try {
-            ous = new FileOutputStream(new java.io.File(fullFilePath));
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
+        if (!fileNameComparisonResult) {
+            StatusCheck statusCheck = putFileInDataBase(filePath, fullFilePath, taskId, reportId);
 
-        try {
-            buffer = new byte[4096];
-
-            int read = 0;
-            while ((read = dataFile.read(buffer)) != -1) {
-                ous.write(buffer, 0, read);
-            }
-            ous.flush();
-            ous.close();
-
-            if (!fileNameComparisonResult) {
-                StatusCheck statusCheck = putFileInDataBase(filePath, fullFilePath, taskId, reportId);
-
-                int result = statusCheck.getResultQuery();
-                if (result > 0) {
-                    saveFile.setAnswerBase("success");
-                } else {
-                    saveFile.setAnswerBase("fail");
-                    saveFile.setFilePath(filePath);
-                    saveFile.setFullFilePath(fullFilePath);
-                    saveFile.setTaskId(taskId);
-                    saveFile.setReportId(reportId);
-                }
+            int result = statusCheck.getResultQuery();
+            if (result > 0) {
+                saveFile.setAnswerBase("success");
             } else {
-                saveFile.setAnswerBase("A file with the same name already exists, its data has been updated");
+                saveFile.setAnswerBase("fail");
+                saveFile.setFilePath(filePath);
+                saveFile.setFullFilePath(fullFilePath);
+                saveFile.setTaskId(taskId);
+                saveFile.setReportId(reportId);
             }
-
-        } catch (IOException e) {
-            e.printStackTrace();
+        } else {
+            saveFile.setAnswerBase("A file with the same name already exists, its data has been updated");
         }
+
         return saveFile;
     }
-
 
 
     /**
@@ -205,7 +228,7 @@ public class FileResourceSQLQuery {
         return statusCheck;
     }
 
-    public   boolean getFileByFileName(String fileName) {
+    public boolean getFileByFileName(String fileName) {
         String name = "";
         try (Connection connection = dataSource.getConnection()) {
             PreparedStatement statement = connection.prepareStatement(FILE_NAME_SEARCH);
@@ -242,7 +265,7 @@ public class FileResourceSQLQuery {
     }
 
 
-    public   StatusCheck putFileInDataBase(String fileName, String fullFilePath, Integer taskId, Integer reportId) {
+    public StatusCheck putFileInDataBase(String fileName, String fullFilePath, Integer taskId, Integer reportId) {
         StatusCheck statusCheck = new StatusCheck();
 
         String hash = Integer.toHexString(fileName.hashCode());
@@ -361,41 +384,5 @@ public class FileResourceSQLQuery {
         statement1.setInt(1, reportId);
         return statement1.executeQuery();
     }
-
-    public List<Integer> getTaskIdAndReportIdByWorkerId(Integer workerId) {
-        List<Integer> listId = Collections.synchronizedList(new ArrayList<>());
-        try (Connection connection = dataSource.getConnection()) {
-            PreparedStatement statement = connection.prepareStatement(GET_TASKID_AND_REPORTID_BY_WORKERID,
-                    ResultSet.TYPE_SCROLL_SENSITIVE,
-                    ResultSet.CONCUR_UPDATABLE);
-            statement.setInt(1, workerId);
-            ResultSet resultSet = statement.executeQuery();
-
-
-            int numberOfRows = 0;
-            resultSet.last();
-            numberOfRows = resultSet.getRow();
-
-            if (numberOfRows == 0) {
-                listId.add(-1);
-            }
-
-            if (numberOfRows > 0) {
-                resultSet.beforeFirst();
-            }
-
-            if (numberOfRows > 0) {
-                while (resultSet.next()) {
-                    listId.add(resultSet.getInt("id"));
-                    listId.add(resultSet.getInt("report_id"));
-                }
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return listId;
-    }
-
 
 }
